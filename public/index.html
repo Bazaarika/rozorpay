@@ -2,21 +2,21 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Razorpay QR Payment Demo</title>
+  <title>Razorpay QR Payment Live</title>
 </head>
 <body>
-  <h2>Pay with Razorpay QR</h2>
+  <h2>Pay via Razorpay QR</h2>
   <input type="number" id="amount" placeholder="Enter amount (INR)" />
   <input type="text" id="name" placeholder="Your Name" />
   <input type="email" id="email" placeholder="Your Email" />
   <input type="text" id="contact" placeholder="Mobile Number" />
-  <button onclick="createPayment()">Pay Now</button>
+  <button onclick="createPayment()">Generate QR</button>
 
   <div id="qr"></div>
   <div id="status"></div>
 
   <script>
-    const BACKEND = "https://rozorpay.onrender.com"; // Render backend URL
+    const BACKEND = "https://rozorpay.onrender.com";
 
     async function createPayment() {
       const amount = document.getElementById("amount").value;
@@ -24,7 +24,7 @@
       const email = document.getElementById("email").value;
       const contact = document.getElementById("contact").value;
 
-      document.getElementById("status").innerText = "Creating payment...";
+      document.getElementById("status").innerText = "Generating QR...";
 
       try {
         const res = await fetch(`${BACKEND}/create-link`, {
@@ -32,17 +32,16 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ amount, name, email, contact })
         });
-
         const data = await res.json();
 
         if (data.short_url) {
-          document.getElementById("status").innerText = "Scan the QR below:";
+          document.getElementById("status").innerText = "Scan the QR to pay:";
           document.getElementById("qr").innerHTML = `
             <p><a href="${data.short_url}" target="_blank">Open Payment Link</a></p>
             <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(data.short_url)}" />
           `;
         } else {
-          document.getElementById("status").innerText = "Failed to create payment link.";
+          document.getElementById("status").innerText = "Failed to generate QR.";
         }
       } catch (err) {
         console.error(err);

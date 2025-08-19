@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Bazaarika – UPI QR Payment</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; margin: 0; background:#f7f7f7; }
+    .wrap { max-width: 780px; margin: 40px auto; background:#fff; padding: 24px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.06); }
+    h1{ margin-top:0; }
+    label{ display:block; margin: 10px 0 6px; font-weight:600; }
+    input, button { font-size: 16px; padding: 10px 12px; border-radius: 10px; border:1px solid #ccc; width:100%; box-sizing: border-box; }
+    button { cursor:pointer; border:0; margin-top:12px; background:#111827; color:#fff; }
+    button.secondary { background:#e5e7eb; color:#111827; }
+    .row{ display:grid; gap:14px; grid-template-columns: 1fr 1fr; }
+    .grid-3{ display:grid; gap:14px; grid-template-columns: 1fr 1fr 1fr; }
+    .qr { margin-top:20px; display:flex; gap:20px; align-items:center; }
+    .qr img{ width:260px; height:260px; border-radius: 12px; border:1px solid #ddd; }
+    .card{ background:#fafafa; padding:16px; border-radius:12px; border:1px solid #eee; }
+    code { background:#f1f5f9; padding:2px 6px; border-radius:6px; }
+    .muted{ color:#6b7280; font-size:14px; }
+    .status{ font-weight:700; }
+    a.btn { display:inline-block; text-decoration:none; padding:10px 12px; background:#111827; color:#fff; border-radius:10px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Bazaarika – Pay via UPI QR</h1>
+    <p class="muted">Enter amount → Generate QR → Scan & Pay. Payment is processed on Razorpay. <br/>Do <b>not</b> refresh while paying.</p>
+
+    <div class="row">
+      <div class="card">
+        <label>Amount (INR)</label>
+        <input id="amount" type="number" min="1" step="1" placeholder="e.g. 199" />
+
+        <div class="grid-3">
+          <div>
+            <label>Name (optional)</label>
+            <input id="name" type="text" placeholder="Customer name" />
+          </div>
+          <div>
+            <label>Email (optional)</label>
+            <input id="email" type="email" placeholder="name@example.com" />
+          </div>
+          <div>
+            <label>Contact (optional)</label>
+            <input id="contact" type="tel" placeholder="10-digit mobile" />
+          </div>
+        </div>
+
+        <button id="btn-generate">Generate QR</button>
+        <p id="error" style="color:#b91c1c; font-weight:600;"></p>
+      </div>
+
+      <div class="card">
+        <div id="qrbox" style="display:none;">
+          <h3>Scan & Pay</h3>
+          <div class="qr">
+            <img id="qrimg" src="" alt="QR" />
+            <div>
+              <div class="muted">Or open payment page:</div>
+              <p><a id="plink" class="btn" href="#" target="_blank" rel="noopener">Open Razorpay Page</a></p>
+              <p class="muted">Payment Link ID: <code id="plink_id"></code></p>
+            </div>
+          </div>
+
+          <hr/>
+          <div>
+            <button class="secondary" id="btn-check">Check Status</button>
+            <div class="muted">Status: <span class="status" id="statusTxt">—</span></div>
+            <div id="extra"></div>
+          </div>
+        </div>
+        <div id="hint" class="muted">QR will appear here after you create a link.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // >>>>>>>> SET THIS TO YOUR RENDER BACKEND URL <<<<<<<<
+    const BACKEND = "https://<your-render-app>.onrender.com";
+
+    const el = (id)=>document.getElementById(id);
+    const btn = el("btn-generate");
+    const btnCheck = el("btn-check");
+
+    btn.addEventListener("click", async () => {
+      el("error").textContent = "";
+      const amount = Number(el("amount").value);
+      const name = el("name").value.trim();
+      const email = el("email").value.trim();
+      const contact = el("contact").value.trim();
+
+      if (!amount || amount <= 0) {
+        el("error").textContent = "Please enter a valid amount.";
+        return;
+      }
+
+      try {
+        const resp = await fetch(`${BACKEND}/create-link`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount, name, email, contact })
+        });
+        const data = await resp.json();
+        if (data.error) throw new Error(data.error);
+
+        // Show QR of short_url
+        const shortUrl = data.short_url;
+        const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(shortUrl)}`;
+
+        el("qrimg").src = qr;
+        el("plink").href = shortUrl;
+        el("plink_id").textContent = data.id;
+        el("statusTxt").textContent = data.status || "created";
+        el("extra").innerHTML = "";
+        el("qrbox").style.display = "block";
+        el("hint").style.display = "none";
+      } catch (e) {
+        console.error(e);
+        el("error").textContent = "Failed to create link. Check server.";
+      }
+    });
+
+    btnCheck.addEventListener("click", async () => {
+      const id = el("plink_id").textContent.trim();
+      if (!id) return;
+      try {
+        const resp = await fetch(`${BACKEND}/status/${id}`);
+        const data = await resp.json();
+        if (data.error) throw new Error(data.error);
+
+        el("statusTxt").textContent = data.status || "—";
+
+        // Show details if available
+        let html = "<div class='muted'>";
+        if (data.payment_id) html += `<div>Payment ID: <code>${data.payment_id}</code></div>`;
+        if (data.method) html += `<div>Method: ${data.method}</div>`;
+        if (data.captured !== undefined) html += `<div>Captured: ${data.captured}</div>`;
+        if (data.timestamp_paid) html += `<div>Paid At: ${data.timestamp_paid}</div>`;
+        html += "</div>";
+        el("extra").innerHTML = html;
+      } catch (e) {
+        console.error(e);
+        alert("Status fetch failed");
+      }
+    });
+  </script>
+</body>
+</html>

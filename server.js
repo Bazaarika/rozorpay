@@ -4,8 +4,14 @@ import bodyParser from "body-parser";
 import fs from "fs";
 import cors from "cors";
 import crypto from "crypto";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const app = express();
+
+// __dirname fix for ES module
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Env variables
 const { RZP_KEY_ID, RZP_KEY_SECRET, WEBHOOK_SECRET, ALLOWED_ORIGIN } = process.env;
@@ -23,7 +29,13 @@ const razorpay = new Razorpay({
   key_secret: RZP_KEY_SECRET,
 });
 
-// ✅ Create payment link (QR supported)
+// ✅ Serve frontend static files
+app.use(express.static(path.join(__dirname, "public")));
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+// ✅ Create payment link
 app.post("/create-link", async (req, res) => {
   try {
     const { amount, name, email, contact } = req.body;
@@ -35,7 +47,7 @@ app.post("/create-link", async (req, res) => {
       customer: { name, email, contact },
       notify: { sms: true, email: true },
       reminder_enable: true,
-      callback_url: "https://rozorpay.onrender.com/success", // change if needed
+      callback_url: "https://rozorpay.onrender.com/success",
       callback_method: "get",
     });
 
@@ -56,7 +68,8 @@ app.post("/webhook", (req, res) => {
   if (req.headers["x-razorpay-signature"] === digest) {
     console.log("Webhook verified:", req.body.event);
 
-    // Save data
+    // Save data to payments.json
+    if (!fs.existsSync("payments.json")) fs.writeFileSync("payments.json", "[\n");
     fs.appendFileSync("payments.json", JSON.stringify(req.body, null, 2) + ",\n");
 
     res.json({ status: "ok" });

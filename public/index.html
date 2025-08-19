@@ -6,65 +6,89 @@
     <title>UPI QR Payment</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            background-color: #f0f2f5;
+            background-color: #e9f2f5;
             color: #333;
             margin: 0;
+            line-height: 1.6;
         }
         .container {
-            background-color: white;
-            padding: 2.5rem;
-            border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            background-color: #ffffff;
+            padding: 3rem;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
             text-align: center;
-            max-width: 400px;
+            max-width: 450px;
             width: 90%;
+            border-top: 5px solid #007bff;
         }
         h1 {
-            color: #2c3e50;
-            margin-bottom: 1.5rem;
+            color: #1e2a3a;
+            margin-bottom: 0.5rem;
+        }
+        p {
+            color: #666;
+            margin-bottom: 2rem;
         }
         input, button {
-            width: 100%;
-            padding: 10px;
+            width: calc(100% - 22px);
+            padding: 12px;
             margin: 10px 0;
-            border-radius: 5px;
-            border: 1px solid #ccc;
+            border-radius: 6px;
+            border: 1px solid #ddd;
             font-size: 1rem;
+            box-sizing: border-box;
         }
         button {
             background-color: #007bff;
             color: white;
             border: none;
             cursor: pointer;
-            transition: background-color 0.3s ease;
+            transition: background-color 0.3s ease, transform 0.2s ease;
         }
         button:hover {
             background-color: #0056b3;
+            transform: translateY(-2px);
         }
         #qr-code-container {
-            margin-top: 1.5rem;
+            margin-top: 2rem;
         }
         #qr-code-image {
-            max-width: 250px;
+            max-width: 100%;
             height: auto;
             border: 1px solid #eee;
-            padding: 5px;
-            border-radius: 5px;
+            padding: 8px;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+        .loader {
+            display: none;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Pay with UPI</h1>
-        <p>Enter the amount and click "Pay" to get your QR code.</p>
-        <input type="number" id="amount" placeholder="Enter amount (in INR)" min="1">
+        <h1>UPI QR Payment</h1>
+        <p>Enter the amount and click "Generate QR" to pay instantly.</p>
+        <input type="number" id="amount" placeholder="Enter amount (in INR)" min="1" step="any">
         <button onclick="generateQrCode()">Generate QR Code</button>
 
+        <div id="loader" class="loader"></div>
         <div id="qr-code-container">
             <img id="qr-code-image" src="" alt="UPI QR Code" style="display: none;">
         </div>
@@ -73,13 +97,18 @@
     <script>
         async function generateQrCode() {
             const amountInput = document.getElementById('amount');
-            const amount = amountInput.value;
+            const amount = parseFloat(amountInput.value);
             const qrCodeImage = document.getElementById('qr-code-image');
+            const loader = document.getElementById('loader');
 
-            if (!amount) {
-                alert('Please enter an amount.');
+            if (!amount || amount <= 0) {
+                alert('Please enter a valid amount greater than zero.');
                 return;
             }
+
+            // Show loader and hide previous QR code
+            qrCodeImage.style.display = 'none';
+            loader.style.display = 'block';
 
             try {
                 const response = await fetch('/create-order', {
@@ -87,7 +116,7 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ amount: parseFloat(amount) })
+                    body: JSON.stringify({ amount: amount })
                 });
 
                 const data = await response.json();
@@ -95,13 +124,14 @@
                 if (response.ok) {
                     qrCodeImage.src = data.qrCodeImageUrl;
                     qrCodeImage.style.display = 'block';
-                    alert('QR Code generated successfully! Scan it to pay.');
                 } else {
-                    alert('Error: ' + data.error);
+                    alert('Error: ' + (data.error || 'Something went wrong.'));
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('An error occurred. Please try again.');
+                alert('An unexpected error occurred. Please try again.');
+            } finally {
+                loader.style.display = 'none';
             }
         }
     </script>

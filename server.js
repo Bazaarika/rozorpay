@@ -1,69 +1,88 @@
-import express from "express";
-import Razorpay from "razorpay";
-import bodyParser from "body-parser";
-import fs from "fs";
-import cors from "cors";
-import crypto from "crypto";
-import path from "path";
-import { fileURLToPath } from "url";
+// server.js
+
+// Import necessary libraries
+const express = require('express');
+const Razorpay = require('razorpay');
+const path = require('path');
+const crypto = require('crypto');
+require('dotenv').config(); // Load environment variables from .env file
 
 const app = express();
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const PORT = process.env.PORT || 3000;
 
-const { RZP_KEY_ID, RZP_KEY_SECRET, WEBHOOK_SECRET, ALLOWED_ORIGIN } = process.env;
+// Middleware to parse JSON bodies
+app.use(express.json());
 
-app.use(bodyParser.json());
-app.use(cors({ origin: ALLOWED_ORIGIN === "*" ? "*" : [ALLOWED_ORIGIN] }));
+// Serve static files (like index.html)
+app.use(express.static(path.join(__dirname, 'public')));
 
-// Razorpay instance
-const razorpay = new Razorpay({
-  key_id: RZP_KEY_ID,
-  key_secret: RZP_KEY_SECRET,
+// Initialize Razorpay instance with keys from .env
+const instance = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
-// Serve frontend
-app.use(express.static(path.join(__dirname, "public")));
-app.get("/", (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
+// Endpoint to create a payment order and generate a QR code
+app.post('/create-order', async (req, res) => {
+  const { amount } = req.body;
 
-// Create dynamic payment link (QR)
-app.post("/create-link", async (req, res) => {
+  if (!amount || amount <= 0) {
+    return res.status(400).json({ error: 'Please provide a valid amount.' });
+  }
+
+  const options = {
+    amount: amount * 100, // Amount in paise
+    currency: 'INR',
+    receipt: 'receipt_' + Date.now(),
+  };
+
   try {
-    const { amount, name, email, contact } = req.body;
-    const amtPaise = Math.round(Number(amount) * 100);
-
-    const paymentLink = await razorpay.paymentLink.create({
-      amount: amtPaise,
-      currency: "INR",
-      customer: { name, email, contact },
-      notify: { sms: true, email: true },
-      reminder_enable: true,
-      callback_url: `https://rozorpay.onrender.com/success`,
-      callback_method: "get",
+    const order = await instance.orders.create(options);
+    const qrCode = await instance.qrCode.create({
+      type: 'upi_qr',
+      name: 'Payment for your order',
+      usage: 'single_use',
+      fixed_amount: true,
+      payments: {
+        method: 'upi',
+      },
     });
 
-    res.json(paymentLink);
-  } catch (err) {
-    console.error("Create link error:", err);
-    res.status(500).json({ error: "Failed to create link. Check server logs." });
+    res.status(200).json({
+      orderId: order.id,
+      qrCodeImageUrl: qrCode.image_url,
+    });
+  } catch (error) {
+    console.error('Error creating order:', error);
+    res.status(500).json({ error: 'Failed to create order.' });
   }
 });
 
-// Webhook
-app.post("/webhook", (req, res) => {
-  const shasum = crypto.createHmac("sha256", WEBHOOK_SECRET);
+// Endpoint to handle webhook for payment status updates
+app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
+  const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+
+  const shasum = crypto.createHmac('sha256', secret);
   shasum.update(JSON.stringify(req.body));
-  const digest = shasum.digest("hex");
+  const digest = shasum.digest('hex');
 
-  if (req.headers["x-razorpay-signature"] === digest) {
-    console.log("Webhook verified:", req.body.event);
-    if (!fs.existsSync("payments.json")) fs.writeFileSync("payments.json", "[\n");
-    fs.appendFileSync("payments.json", JSON.stringify(req.body, null, 2) + ",\n");
-    res.json({ status: "ok" });
+  if (digest === req.headers['x-razorpay-signature']) {
+    console.log('Request is valid');
+    // Process the webhook event here
+    const event = req.body.event;
+    if (event === 'payment.captured') {
+      const payment = req.body.payload.payment.entity;
+      console.log('Payment successful:', payment);
+      // Here you can update your database, fulfill the order, etc.
+    }
   } else {
-    res.status(400).send("Invalid signature");
+    console.log('Invalid signature');
   }
+
+  res.json({ status: 'ok' });
 });
 
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// Start the server
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});

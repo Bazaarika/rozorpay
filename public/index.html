@@ -2,18 +2,94 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Razorpay QR Payment Live</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Razorpay QR Payment</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f7f9fc;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      padding: 20px;
+      color: #333;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+      color: #0b72b9;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 15px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+      padding: 25px 30px;
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px 15px;
+      margin: 10px 0;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+    }
+
+    button {
+      background-color: #0b72b9;
+      color: #fff;
+      border: none;
+      padding: 12px 25px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: background 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #095a94;
+    }
+
+    #qr img {
+      margin-top: 15px;
+      border-radius: 12px;
+    }
+
+    #status {
+      margin-top: 10px;
+      font-weight: bold;
+    }
+
+    a {
+      color: #0b72b9;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+  </style>
 </head>
 <body>
-  <h2>Pay via Razorpay QR</h2>
-  <input type="number" id="amount" placeholder="Enter amount (INR)" />
-  <input type="text" id="name" placeholder="Your Name" />
-  <input type="email" id="email" placeholder="Your Email" />
-  <input type="text" id="contact" placeholder="Mobile Number" />
-  <button onclick="createPayment()">Generate QR</button>
+  <h1>Razorpay QR Payment</h1>
+  <div class="card">
+    <input type="number" id="amount" placeholder="Enter amount (INR)" />
+    <input type="text" id="name" placeholder="Your Name" />
+    <input type="email" id="email" placeholder="Your Email" />
+    <input type="text" id="contact" placeholder="Mobile Number" />
+    <button onclick="createPayment()">Generate QR</button>
 
-  <div id="qr"></div>
-  <div id="status"></div>
+    <div id="status"></div>
+    <div id="qr"></div>
+  </div>
 
   <script>
     const BACKEND = "https://rozorpay.onrender.com";
@@ -23,6 +99,11 @@
       const name = document.getElementById("name").value;
       const email = document.getElementById("email").value;
       const contact = document.getElementById("contact").value;
+
+      if (!amount || !name || !email || !contact) {
+        alert("Please fill all fields!");
+        return;
+      }
 
       document.getElementById("status").innerText = "Generating QR...";
 
@@ -38,14 +119,14 @@
           document.getElementById("status").innerText = "Scan the QR to pay:";
           document.getElementById("qr").innerHTML = `
             <p><a href="${data.short_url}" target="_blank">Open Payment Link</a></p>
-            <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(data.short_url)}" />
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(data.short_url)}" />
           `;
         } else {
           document.getElementById("status").innerText = "Failed to generate QR.";
         }
       } catch (err) {
         console.error(err);
-        document.getElementById("status").innerText = "Server error.";
+        document.getElementById("status").innerText = "Server error. Try again!";
       }
     }
   </script>

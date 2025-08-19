@@ -1,134 +1,109 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Razorpay QR Payment</title>
-  <style>
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #f7f9fc;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      min-height: 100vh;
-      padding: 20px;
-      color: #333;
-    }
-
-    h1 {
-      margin-bottom: 10px;
-      color: #0b72b9;
-    }
-
-    .card {
-      background: #fff;
-      border-radius: 15px;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
-      padding: 25px 30px;
-      max-width: 400px;
-      width: 100%;
-      text-align: center;
-    }
-
-    input {
-      width: 100%;
-      padding: 12px 15px;
-      margin: 10px 0;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-      font-size: 16px;
-    }
-
-    button {
-      background-color: #0b72b9;
-      color: #fff;
-      border: none;
-      padding: 12px 25px;
-      border-radius: 8px;
-      font-size: 16px;
-      cursor: pointer;
-      margin-top: 10px;
-      transition: background 0.3s ease;
-    }
-
-    button:hover {
-      background-color: #095a94;
-    }
-
-    #qr img {
-      margin-top: 15px;
-      border-radius: 12px;
-    }
-
-    #status {
-      margin-top: 10px;
-      font-weight: bold;
-    }
-
-    a {
-      color: #0b72b9;
-      text-decoration: none;
-      font-weight: bold;
-    }
-
-    a:hover {
-      text-decoration: underline;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UPI QR Payment</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f2f5;
+            color: #333;
+            margin: 0;
+        }
+        .container {
+            background-color: white;
+            padding: 2.5rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 1.5rem;
+        }
+        input, button {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            font-size: 1rem;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #qr-code-container {
+            margin-top: 1.5rem;
+        }
+        #qr-code-image {
+            max-width: 250px;
+            height: auto;
+            border: 1px solid #eee;
+            padding: 5px;
+            border-radius: 5px;
+        }
+    </style>
 </head>
 <body>
-  <h1>Razorpay QR Payment</h1>
-  <div class="card">
-    <input type="number" id="amount" placeholder="Enter amount (INR)" />
-    <input type="text" id="name" placeholder="Your Name" />
-    <input type="email" id="email" placeholder="Your Email" />
-    <input type="text" id="contact" placeholder="Mobile Number" />
-    <button onclick="createPayment()">Generate QR</button>
+    <div class="container">
+        <h1>Pay with UPI</h1>
+        <p>Enter the amount and click "Pay" to get your QR code.</p>
+        <input type="number" id="amount" placeholder="Enter amount (in INR)" min="1">
+        <button onclick="generateQrCode()">Generate QR Code</button>
 
-    <div id="status"></div>
-    <div id="qr"></div>
-  </div>
+        <div id="qr-code-container">
+            <img id="qr-code-image" src="" alt="UPI QR Code" style="display: none;">
+        </div>
+    </div>
 
-  <script>
-    const BACKEND = "https://rozorpay.onrender.com";
+    <script>
+        async function generateQrCode() {
+            const amountInput = document.getElementById('amount');
+            const amount = amountInput.value;
+            const qrCodeImage = document.getElementById('qr-code-image');
 
-    async function createPayment() {
-      const amount = document.getElementById("amount").value;
-      const name = document.getElementById("name").value;
-      const email = document.getElementById("email").value;
-      const contact = document.getElementById("contact").value;
+            if (!amount) {
+                alert('Please enter an amount.');
+                return;
+            }
 
-      if (!amount || !name || !email || !contact) {
-        alert("Please fill all fields!");
-        return;
-      }
+            try {
+                const response = await fetch('/create-order', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ amount: parseFloat(amount) })
+                });
 
-      document.getElementById("status").innerText = "Generating QR...";
+                const data = await response.json();
 
-      try {
-        const res = await fetch(`${BACKEND}/create-link`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ amount, name, email, contact })
-        });
-        const data = await res.json();
-
-        if (data.short_url) {
-          document.getElementById("status").innerText = "Scan the QR to pay:";
-          document.getElementById("qr").innerHTML = `
-            <p><a href="${data.short_url}" target="_blank">Open Payment Link</a></p>
-            <img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(data.short_url)}" />
-          `;
-        } else {
-          document.getElementById("status").innerText = "Failed to generate QR.";
+                if (response.ok) {
+                    qrCodeImage.src = data.qrCodeImageUrl;
+                    qrCodeImage.style.display = 'block';
+                    alert('QR Code generated successfully! Scan it to pay.');
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            }
         }
-      } catch (err) {
-        console.error(err);
-        document.getElementById("status").innerText = "Server error. Try again!";
-      }
-    }
-  </script>
+    </script>
 </body>
 </html>

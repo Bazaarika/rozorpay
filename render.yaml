@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: razorpay-qr-demo
+    env: node
+    plan: free
+    buildCommand: "npm install"
+    startCommand: "npm start"
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: RZP_KEY_ID
+        sync: false
+      - key: RZP_KEY_SECRET
+        sync: false
+      - key: WEBHOOK_SECRET
+        sync: false
+      - key: ALLOWED_ORIGIN
+        value: https://<your-github-username>.github.io
